@@ -4,16 +4,19 @@
 <meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
 /* Layout: diario clinico. Sintesi (3 valori) → grafico con soglie e inizio terapia → diario per giorno, mattina | sera, raggruppato per settimana */
 :root{
-  --bg:#F3F6F8; --surface:#FFFFFF; --ink:#1C2830; --muted:#5B6B76; --line:#DCE3E8;
-  --sys:#C2413B; --dia:#2F6690; --ok:#2E7D5B; --hi:#B4561E; --hi-bg:#FBEFE6; --crit:#A1232B;
-  --wk:#EAF0F3;
-  --font:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  /* tema scuro "tech" sempre attivo */
+  --bg:#07080A; --surface:#0D0F13; --ink:#EDEFF3; --muted:#8B94A1; --line:rgba(255,255,255,.08);
+  --sys:#FF6B6B; --dia:#4FC3F7; --ok:#3DDC97; --hi:#FFB454; --hi-bg:rgba(255,180,84,.10); --crit:#FF5A6E;
+  --wk:#11141A; --accent:#8B6CFF; color-scheme:dark;
+  --font:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
 }
+html{background:#07080A}
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     --bg:#12181C; --surface:#1A2228; --ink:#E6ECEF; --muted:#9AA9B3; --line:#2C3740;
@@ -113,10 +116,39 @@ td.notes div + div{margin-top:3px}
   td.notes{grid-column:1 / -1;max-width:none}
   td.notes:empty{display:none}
 }
+
+/* ---- look tech ---- */
+body{background:
+  radial-gradient(900px 420px at 50% -120px, color-mix(in srgb,var(--accent) 22%,transparent), transparent 70%),
+  linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px) 0 0/40px 40px,
+  linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px) 0 0/40px 40px,
+  var(--bg);
+  background-attachment:fixed; -webkit-font-smoothing:antialiased}
+.eyebrow{font-family:var(--mono);font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.eyebrow::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok)}
+header h1{font-size:2.3rem;font-weight:800;letter-spacing:-.03em;background:linear-gradient(180deg,#fff 30%,#9AA3B2);-webkit-background-clip:text;background-clip:text;color:transparent}
+.chip{font-family:var(--mono);font-size:.74rem;font-weight:500;letter-spacing:.02em;background:rgba(255,255,255,.03);border:1px solid var(--line);color:var(--ink)}
+.card,.chartbox,.tablewrap{border:1px solid transparent;border-radius:14px;
+  background:linear-gradient(var(--surface),var(--surface)) padding-box,
+             linear-gradient(140deg,color-mix(in srgb,var(--accent) 55%,transparent),rgba(255,255,255,.06) 45%,rgba(255,255,255,.03)) border-box;
+  box-shadow:0 0 0 1px rgba(0,0,0,.4),0 18px 40px -24px rgba(0,0,0,.8)}
+.card .k,thead th,td.slot::before,.legend,.keyline,td.day .tday,.rd .tm{font-family:var(--mono)}
+.card .k{font-size:.7rem;letter-spacing:.12em;color:var(--muted)}
+.card .v,.rd b,.num,tr.week b{font-family:var(--mono);letter-spacing:-.02em}
+.card .v{font-size:1.95rem;font-weight:700}
+.pill{font-family:var(--mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;border:1px solid currentColor;background:transparent!important}
+section h2{font-family:var(--mono);font-size:.78rem;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:10px}
+section h2 .ix{color:var(--accent)}
+section h2::after{content:"";flex:1;height:1px;background:var(--line)}
+.legend,.keyline{font-size:.76rem}
+tr.week td{background:rgba(255,255,255,.025);font-family:var(--mono);font-size:.74rem;letter-spacing:.04em}
+tr:not(.week):hover td{background:rgba(255,255,255,.02)}
+.note{font-size:.84rem}
 </style>
 
 <main>
   <header>
+    <div class="eyebrow">Monitoraggio pressione · live</div>
     <h1>Pressione arteriosa</h1>
     <p>Automisurazioni a casa, mattina e sera, da portare al medico. Soglia di riferimento per le misurazioni a casa: 135/85 mmHg.</p>
     <div class="chips" id="chips"></div>
@@ -125,7 +157,7 @@ td.notes div + div{margin-top:3px}
   <div class="summary" id="summary"></div>
 
   <section>
-    <h2>Andamento</h2>
+    <h2><span class="ix">01</span> Andamento</h2>
     <div class="chartbox">
       <div class="chartwrap"><canvas id="chart" role="img" aria-label="Grafico di massima e minima giorno per giorno, con soglia 135/85 e inizio della terapia"></canvas></div>
       <div class="legend">
@@ -140,7 +172,7 @@ td.notes div + div{margin-top:3px}
   </section>
 
   <section>
-    <h2>Diario delle misurazioni</h2>
+    <h2><span class="ix">02</span> Diario delle misurazioni</h2>
     <div class="tablewrap">
       <table>
         <thead><tr><th>Giorno</th><th>Mattina</th><th>Sera</th><th>Note</th></tr></thead>
@@ -326,23 +358,26 @@ const guides = { id:"guides", beforeDatasetsDraw(c){
   [[135,css("--sys")],[85,css("--dia")]].forEach(([v,col]) => {
     const py = y.getPixelForValue(v); ctx.strokeStyle = col; ctx.globalAlpha = .7;
     ctx.beginPath(); ctx.moveTo(a.left,py); ctx.lineTo(a.right,py); ctx.stroke();
-    ctx.globalAlpha = 1; ctx.fillStyle = col; ctx.font = "600 11px Public Sans, system-ui, sans-serif"; ctx.textAlign = "right"; ctx.fillText(v, a.right-2, py-5);
+    ctx.globalAlpha = 1; ctx.fillStyle = col; ctx.font = "600 11px JetBrains Mono, ui-monospace, monospace"; ctx.textAlign = "right"; ctx.fillText(v, a.right-2, py-5);
   });
   const px = x.getPixelForValue(X(start)+0.33);
   ctx.setLineDash([2,4]); ctx.strokeStyle = muted; ctx.globalAlpha = .9;
   ctx.beginPath(); ctx.moveTo(px,a.top); ctx.lineTo(px,a.bottom); ctx.stroke();
-  ctx.setLineDash([]); ctx.fillStyle = muted; ctx.textAlign = "left"; ctx.font = "600 11px Public Sans, system-ui, sans-serif";
+  ctx.setLineDash([]); ctx.fillStyle = muted; ctx.textAlign = "left"; ctx.font = "600 11px JetBrains Mono, ui-monospace, monospace";
   ctx.fillText("Olmesartan", px+5, a.top+12);
   const sx = x.getPixelForValue(X(parse(SWITCH))), ink = css("--ink");
   ctx.globalAlpha = .07; ctx.fillStyle = ink; ctx.fillRect(sx, a.top, a.right-sx, a.bottom-a.top);
   ctx.globalAlpha = 1; ctx.strokeStyle = ink; ctx.lineWidth = 2.5;
   ctx.beginPath(); ctx.moveTo(sx,a.top); ctx.lineTo(sx,a.bottom); ctx.stroke();
-  ctx.fillStyle = ink; ctx.font = "700 12px Public Sans, system-ui, sans-serif";
-  ctx.fillText("Bivis dal 29/10", sx+6, a.top+14);
+  ctx.fillStyle = ink; ctx.font = "700 12px JetBrains Mono, ui-monospace, monospace";
+  ctx.fillText("Bivis", sx+6, a.top+14);
+  ctx.font = "500 10px JetBrains Mono, ui-monospace, monospace"; ctx.fillStyle = muted;
+  ctx.fillText("dal 29/10", sx+6, a.top+27);
   ctx.restore();
 }};
 function draw(){
   if(typeof Chart==="undefined") return;
+  Chart.defaults.font.family = "JetBrains Mono, ui-monospace, monospace"; Chart.defaults.font.size = 11;
   const sys=css("--sys"), dia=css("--dia"), muted=css("--muted"), line=css("--line"), surf=css("--surface");
   const pts = (key,col,amb) => ({type:"scatter", data:R.filter(x=>(x.where==="amb")===amb).map(x=>({x:X(x.dt), y:x[key], r:x})),
     backgroundColor: amb ? surf : col+"66", borderColor: amb ? col : "transparent", borderWidth: amb?2:0, pointRadius: amb?5:3.5, pointHoverRadius:6});
