@@ -1,98 +1,159 @@
-<!doctype html>
-<html lang="it">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="robots" content="noindex, nofollow">
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Pressione arteriosa – Andamento</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
+/* Layout: diario clinico. Sintesi (3 valori) → grafico con soglie e inizio terapia → diario per giorno, mattina | sera, raggruppato per settimana */
 :root{
   --bg:#F3F6F8; --surface:#FFFFFF; --ink:#1C2830; --muted:#5B6B76; --line:#DCE3E8;
-  --sys:#C2413B; --dia:#2F6690; --band:#E6ECF0; --ok:#2E7D5B;
-  box-sizing:border-box;
-  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  --sys:#C2413B; --dia:#2F6690; --ok:#2E7D5B; --hi:#B4561E; --hi-bg:#FBEFE6; --crit:#A1232B;
+  --wk:#EAF0F3;
+  --font:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     --bg:#12181C; --surface:#1A2228; --ink:#E6ECEF; --muted:#9AA9B3; --line:#2C3740;
-    --sys:#F07167; --dia:#6CA6D9; --band:#222C33; --ok:#5CC497;
+    --sys:#F07167; --dia:#6CA6D9; --ok:#5CC497; --hi:#F0A060; --hi-bg:#33261C; --crit:#FF7A7F;
+    --wk:#202A31; color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
   --bg:#12181C; --surface:#1A2228; --ink:#E6ECEF; --muted:#9AA9B3; --line:#2C3740;
-  --sys:#F07167; --dia:#6CA6D9; --band:#222C33; --ok:#5CC497;
+  --sys:#F07167; --dia:#6CA6D9; --ok:#5CC497; --hi:#F0A060; --hi-bg:#33261C; --crit:#FF7A7F;
+  --wk:#202A31; color-scheme:dark;
 }
-*,*::before,*::after{box-sizing:inherit}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
-body{margin:0;background:var(--bg);color:var(--ink);
-  font-family:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-  font-size:16px;line-height:1.5}
-main{max-width:860px;margin:0 auto;padding:28px 18px 48px}
-h1{font-size:1.75rem;line-height:1.2;font-weight:700;margin:0 0 6px;letter-spacing:-0.01em}
-.sub{color:var(--muted);margin:0 0 22px;max-width:62ch}
-.readouts{display:flex;flex-wrap:wrap;gap:28px;margin:0 0 20px}
-.readout .val{font-size:2.4rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
-.readout .val .s{color:var(--sys)} .readout .val .d{color:var(--dia)}
-.readout .val .slash{color:var(--muted);font-weight:400;margin:0 2px}
-.readout .lab{color:var(--muted);font-size:.9rem;margin-top:6px}
-.chartbox{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 12px 8px}
+*,*::before,*::after{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:880px;margin:0 auto;padding-block:28px 48px;display:flex;flex-direction:column;gap:28px}
+header h1{font-size:1.75rem;line-height:1.2;font-weight:700;margin:0 0 6px;letter-spacing:-0.01em;text-wrap:balance}
+header p{color:var(--muted);margin:0;max-width:64ch}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.chip{font-size:.82rem;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--wk);color:var(--muted)}
+
+.num{font-variant-numeric:tabular-nums}
+.bp .s{color:var(--sys)} .bp .d{color:var(--dia)} .bp .sl{color:var(--muted);font-weight:400;margin:0 1px}
+
+/* sintesi */
+.summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.card .k{font-size:.78rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.card .v{font-size:2.1rem;font-weight:700;line-height:1.05}
+.card .v small{font-size:.85rem;font-weight:500;color:var(--muted);margin-left:4px}
+.card .m{font-size:.88rem;color:var(--muted)}
+.pill{align-self:flex-start;font-size:.78rem;font-weight:700;padding:2px 9px;border-radius:999px}
+.pill.ok{color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.pill.hi{color:var(--hi);background:var(--hi-bg)}
+.pill.crit{color:var(--crit);background:color-mix(in srgb,var(--crit) 16%,transparent)}
+.delta{font-weight:700;color:var(--ok)}
+.delta.up{color:var(--hi)}
+
+/* grafico */
+section h2{font-size:1.1rem;margin:0 0 10px}
+.chartbox{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 10px 8px}
 .chartwrap{position:relative;height:340px}
-.legend{display:flex;flex-wrap:wrap;gap:18px;font-size:.9rem;color:var(--muted);padding:10px 6px 4px}
-.legend span{display:inline-flex;align-items:center;gap:8px}
-.sw{width:18px;height:3px;border-radius:2px;display:inline-block}
-.sw.dash{background:repeating-linear-gradient(90deg,currentColor 0 5px,transparent 5px 9px);height:2px}
-h2{font-size:1.15rem;margin:34px 0 10px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.86rem;color:var(--muted);padding:10px 6px 2px}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.ln{width:18px;height:3px;border-radius:2px;display:inline-block}
+.dt{width:8px;height:8px;border-radius:50%;display:inline-block;opacity:.45}
+.hol{width:9px;height:9px;border-radius:50%;display:inline-block;border:2px solid var(--muted)}
+.dash{width:18px;height:0;border-top:2px dashed var(--muted);display:inline-block}
+
+/* diario */
 .tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px}
-table{border-collapse:collapse;width:100%;min-width:520px;font-variant-numeric:tabular-nums}
-th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);font-size:.95rem}
-th{color:var(--muted);font-weight:600}
+table{border-collapse:collapse;width:100%;min-width:560px}
+th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line);font-size:.93rem;vertical-align:top}
+thead th{color:var(--muted);font-weight:600;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase}
 tr:last-child td{border-bottom:0}
-td.num{font-weight:600}
-.tag{font-size:.85rem;color:var(--muted)}
-.flag{font-size:.85rem;font-weight:600}
-.flag.hi{color:var(--sys)} .flag.ok{color:var(--ok)}
-.note{color:var(--muted);font-size:.9rem;max-width:68ch;margin-top:22px}
+tr.week td{background:var(--wk);font-size:.85rem;color:var(--muted);padding-block:7px}
+tr.week b{color:var(--ink)}
+td.day{white-space:nowrap}
+td.day .tday{display:block;font-size:.78rem;color:var(--muted)}
+td.slot{min-width:118px}
+.rd{display:flex;width:fit-content;align-items:baseline;gap:8px;padding:2px 6px;margin:0 -6px;border-radius:6px}
+.rd + .rd{margin-top:3px}
+.rd.hi{background:var(--hi-bg)}
+.rd.crit{background:color-mix(in srgb,var(--crit) 16%,transparent)}
+.rd b{font-weight:700}
+.rd .tm{font-size:.78rem;color:var(--muted)}
+.rd .tag{font-size:.72rem;color:var(--muted);white-space:nowrap}
+td.notes{color:var(--muted);font-size:.86rem;max-width:34ch}
+td.notes div + div{margin-top:3px}
+.empty{color:var(--line)}
+.keyline{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.84rem;color:var(--muted);margin-top:10px}
+.sw{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:6px}
+
+.note{color:var(--muted);font-size:.88rem;max-width:70ch;margin:0}
+.note strong{color:var(--ink)}
+
+@media (max-width:640px){
+  .summary{grid-template-columns:1fr}
+  .card{flex-direction:row;flex-wrap:wrap;align-items:baseline;column-gap:12px}
+  .card .k{flex-basis:100%}
+  .card .v{font-size:1.8rem}
+  .chartwrap{height:280px}
+  /* diario su telefono: un blocco per giorno, mattina sopra e sera sotto */
+  table{min-width:0}
+  thead{display:none}
+  tbody,tr,td{display:block}
+  tr:not(.week){display:grid;grid-template-columns:84px minmax(0,1fr);column-gap:12px;row-gap:6px;padding:11px 14px;border-bottom:1px solid var(--line)}
+  tr:not(.week) td{border:0;padding:0}
+  tr:last-child{border-bottom:0}
+  tr.week td{padding:7px 14px}
+  td.day{grid-row:1 / span 2;white-space:normal;font-weight:600}
+  td.day .tday{font-weight:400}
+  td.slot{grid-column:2;min-width:0;display:grid;grid-template-columns:54px minmax(0,1fr);column-gap:8px;align-items:baseline}
+  td.slot::before{content:attr(data-label);font-size:.7rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+  td.slot > *{grid-column:2}
+  .rd{flex-wrap:wrap;column-gap:8px;row-gap:0}
+  td.notes{grid-column:1 / -1;max-width:none}
+  td.notes:empty{display:none}
+}
 </style>
-</head>
-<body>
+
 <main>
-  <h1>Pressione arteriosa</h1>
-  <p class="sub">Automisurazioni a casa, mattina e sera, da portare al medico. La linea tratteggiata indica la soglia di riferimento per le misurazioni a casa (135/85).</p>
+  <header>
+    <h1>Pressione arteriosa</h1>
+    <p>Automisurazioni a casa, mattina e sera, da portare al medico. Soglia di riferimento per le misurazioni a casa: 135/85 mmHg.</p>
+    <div class="chips" id="chips"></div>
+  </header>
 
-  <div class="readouts">
-    <div class="readout">
-      <div class="val" id="last"></div>
-      <div class="lab" id="lastLab"></div>
+  <div class="summary" id="summary"></div>
+
+  <section>
+    <h2>Andamento</h2>
+    <div class="chartbox">
+      <div class="chartwrap"><canvas id="chart" role="img" aria-label="Grafico di massima e minima giorno per giorno, con soglia 135/85 e inizio della terapia"></canvas></div>
+      <div class="legend">
+        <span><i class="ln" style="background:var(--sys)"></i>Massima, media del giorno</span>
+        <span><i class="ln" style="background:var(--dia)"></i>Minima, media del giorno</span>
+        <span><i class="dt" style="background:var(--muted)"></i>Singole misurazioni</span>
+        <span><i class="hol"></i>In ambulatorio</span>
+        <span><i class="dash"></i>Soglia 135 / 85</span>
+        <span><i class="ln" style="background:var(--ink)"></i>Cambio farmaco: Bivis dal 29/10 (prima olmesartan 20 mg); area ombreggiata = periodo Bivis</span>
+      </div>
     </div>
-    <div class="readout">
-      <div class="val" id="avg"></div>
-      <div class="lab" id="avgLab"></div>
+  </section>
+
+  <section>
+    <h2>Diario delle misurazioni</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Giorno</th><th>Mattina</th><th>Sera</th><th>Note</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
     </div>
-  </div>
-
-  <div class="chartbox">
-    <div class="chartwrap"><canvas id="chart" aria-label="Grafico dell'andamento di massima e minima nel tempo" role="img"></canvas></div>
-    <div class="legend">
-      <span><i class="sw" style="background:var(--sys)"></i>Massima</span>
-      <span><i class="sw" style="background:var(--dia)"></i>Minima</span>
-      <span style="color:var(--muted)"><i class="sw dash"></i>Soglia casa 135 / 85</span>
-      <span>Punto vuoto: misurazione in ambulatorio</span>
+    <div class="keyline">
+      <span><i class="sw" style="background:var(--hi-bg);border:1px solid var(--line)"></i>Sopra soglia (massima ≥135 o minima ≥85)</span>
+      <span>Mattina: prima delle 14. Le note di routine sono riassunte nelle colonne.</span>
     </div>
-  </div>
+  </section>
 
-  <h2>Tutte le misurazioni</h2>
-  <div class="tablewrap">
-    <table>
-      <thead><tr><th>Data e ora</th><th>Massima</th><th>Minima</th><th>Esito</th><th>Note</th></tr></thead>
-      <tbody id="rows"></tbody>
-    </table>
-  </div>
-
-  <p class="note">Le medie considerano solo le misurazioni fatte a casa. Valori indicativi da discutere con il medico curante; in caso di massima oltre 180 o minima oltre 110, o di sintomi come dolore al petto o mal di testa improvviso e forte, chiamare il 112.</p>
+  <p class="note">Le medie considerano solo le misurazioni fatte a casa. Valori indicativi da discutere con il medico curante. <strong>In caso di massima oltre 180 o minima oltre 110, o di sintomi come dolore al petto o mal di testa improvviso e forte, chiamare il 112.</strong></p>
 </main>
 
 <script>
@@ -142,74 +203,176 @@ const DATA = [
   {t:"2026-10-24T10:40", s:126, d:83,  where:"casa", note:"Mattina, giorno 19 di terapia"},
   {t:"2026-10-24T21:00", s:138, d:89,  where:"casa", note:"Sera, giorno 19 di terapia"},
   {t:"2026-10-25T08:00", s:135, d:94,  where:"casa", note:"Mattina, giorno 20 di terapia"},
-  {t:"2026-10-25T20:30", s:136, d:90,  where:"casa", note:"Sera, giorno 20 di terapia"}
+  {t:"2026-10-25T20:30", s:136, d:90,  where:"casa", note:"Sera, giorno 20 di terapia"},
+  {t:"2026-10-26T07:00", s:134, d:86,  where:"casa", note:"Risveglio, prima della compressa"},
+  {t:"2026-10-26T21:30", s:139, d:92,  where:"casa", note:"Sera, giorno 21 di terapia"},
+  {t:"2026-10-27T07:00", s:128, d:89,  where:"casa", note:"Risveglio, prima della compressa"},
+  {t:"2026-10-27T20:30", s:145, d:98,  where:"casa", note:"Sera, giorno 22 di terapia"},
+  {t:"2026-10-28T07:00", s:127, d:88,  where:"casa", note:"Risveglio, prima della compressa"},
+  {t:"2026-10-28T23:58", s:156, d:102, where:"casa", note:"Notte, giorno 23 di terapia"},
+  {t:"2026-10-29T07:45", s:135, d:90,  where:"casa", note:"Risveglio. Da oggi Bivis al posto di olmesartan"},
+  {t:"2026-10-29T23:30", s:145, d:97,  where:"casa", note:"Notte, primo giorno di Bivis"},
+  {t:"2026-10-30T09:00", s:123, d:87,  where:"casa", note:"Mattina, giorno 2 di Bivis"},
+  {t:"2026-10-30T23:00", s:136, d:83,  where:"casa", note:"Notte, giorno 2 di Bivis"},
+  {t:"2026-10-31T10:00", s:107, d:72,  where:"casa", note:"Mattina, giorno 3 di Bivis"},
+  {t:"2026-10-31T23:40", s:136, d:91,  where:"casa", note:"Notte, giorno 3 di Bivis"},
+  {t:"2026-11-01T10:30", s:114, d:80,  where:"casa", note:"Mattina, giorno 4 di Bivis"},
+  {t:"2026-11-01T23:30", s:144, d:94,  where:"casa", note:"Notte, giorno 4 di Bivis"},
+  {t:"2026-11-02T07:45", s:119, d:81,  where:"casa", note:"Risveglio, giorno 5 di Bivis"},
+  {t:"2026-11-02T23:30", s:128, d:88,  where:"casa", note:"Notte, giorno 5 di Bivis"},
+  {t:"2026-11-03T07:00", s:118, d:80,  where:"casa", note:"Risveglio, giorno 6 di Bivis"},
+  {t:"2026-11-04T07:00", s:123, d:85,  where:"casa", note:"Risveglio, giorno 7 di Bivis"},
+  {t:"2026-11-04T23:45", s:129, d:88,  where:"casa", note:"Notte, giorno 7 di Bivis"},
+  {t:"2026-11-05T07:00", s:120, d:79,  where:"casa", note:"Risveglio, giorno 8 di Bivis"},
+  {t:"2026-11-05T23:45", s:138, d:93,  where:"casa", note:"Notte, giorno 8 di Bivis"},
+  {t:"2026-11-06T07:00", s:120, d:83,  where:"casa", note:"Risveglio, giorno 9 di Bivis"},
+  {t:"2026-11-06T23:40", s:131, d:90,  where:"casa", note:"Notte, giorno 9 di Bivis"},
+  {t:"2026-11-07T07:00", s:118, d:82,  where:"casa", note:"Risveglio, giorno 10 di Bivis"},
+  {t:"2026-11-07T23:00", s:131, d:89,  where:"casa", note:"Notte, giorno 10 di Bivis"},
+  {t:"2026-11-08T10:00", s:109, d:80,  where:"casa", note:"Mattina, giorno 11 di Bivis"},
+  {t:"2026-11-08T21:00", s:139, d:84,  where:"casa", note:"Sera, giorno 11 di Bivis"},
+  {t:"2026-11-09T07:00", s:120, d:82,  where:"casa", note:"Risveglio, giorno 12 di Bivis"},
+  {t:"2026-11-09T23:40", s:132, d:79,  where:"casa", note:"Notte, giorno 12 di Bivis"},
+  {t:"2026-11-10T07:00", s:117, d:76,  where:"casa", note:"Risveglio, giorno 13 di Bivis"}
 ];
 
+// Prima compressa: mattina del 6 ottobre, dopo la misurazione al risveglio
+const THERAPY_START = "2026-10-06";
+const SWITCH = "2026-10-29T08:00"; // passaggio da olmesartan a Bivis
+
 const GG = ["dom","lun","mar","mer","gio","ven","sab"];
-function lab(iso){
-  const [date,time] = iso.split("T"); const [y,m,d] = date.split("-").map(Number);
-  const wd = GG[new Date(y,m-1,d).getDay()];
-  return {short:`${d}/${m} ${time}`, long:`${wd} ${d}/${m}, ore ${time}`};
-}
-function fmt(s,d){return `<span class="s">${s}</span><span class="slash">/</span><span class="d">${d}</span>`}
+const MM = ["gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"];
+const DAY = 864e5;
+const parse = iso => { const [a,b] = iso.split("T"); const [y,m,d] = a.split("-").map(Number); const [h,mi] = (b||"00:00").split(":").map(Number); return new Date(y,m-1,d,h,mi); };
+const dayKey = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}-${String(dt.getDate()).padStart(2,"0")}`;
+const dShort = dt => `${dt.getDate()} ${MM[dt.getMonth()]}`;
+const hhmm = dt => `${String(dt.getHours()).padStart(2,"0")}:${String(dt.getMinutes()).padStart(2,"0")}`;
+const bp = (s,d) => `<span class="bp num"><span class="s">${s}</span><span class="sl">/</span><span class="d">${d}</span></span>`;
+const level = x => (x.s>180 || x.d>110) ? "crit" : (x.s>=135 || x.d>=85) ? "hi" : "ok";
+const LEVEL_TXT = {ok:"Nella norma", hi:"Sopra soglia", crit:"Molto alta"};
+const avg = arr => arr.length ? {s:Math.round(arr.reduce((a,x)=>a+x.s,0)/arr.length), d:Math.round(arr.reduce((a,x)=>a+x.d,0)/arr.length), n:arr.length} : null;
 
-const home = DATA.filter(x=>x.where==="casa");
-const last = DATA[DATA.length-1];
-document.getElementById("last").innerHTML = fmt(last.s,last.d);
-document.getElementById("lastLab").textContent = "Ultima misurazione, " + lab(last.t).long;
-if(home.length){
-  const as = Math.round(home.reduce((a,x)=>a+x.s,0)/home.length);
-  const ad = Math.round(home.reduce((a,x)=>a+x.d,0)/home.length);
-  document.getElementById("avg").innerHTML = fmt(as,ad);
-  document.getElementById("avgLab").textContent = `Media a casa su ${home.length} misurazion${home.length===1?"e":"i"}`;
-}
+const R = DATA.map(x => ({...x, dt:parse(x.t)})).sort((a,b)=>a.dt-b.dt);
+const start = parse(THERAPY_START);
+const tDay = dt => Math.floor((new Date(dt.getFullYear(),dt.getMonth(),dt.getDate()) - start)/DAY) + 1;
+const home = R.filter(x => x.where==="casa");
+const last = R[R.length-1];
 
-const tb = document.getElementById("rows");
-[...DATA].reverse().forEach(x=>{
-  const hi = x.s>=135 || x.d>=85;
-  const tr = document.createElement("tr");
-  tr.innerHTML = `<td>${lab(x.t).long}${x.where==="amb"?' <span class="tag">(ambulatorio)</span>':''}</td>
-    <td class="num" style="color:var(--sys)">${x.s}</td>
-    <td class="num" style="color:var(--dia)">${x.d}</td>
-    <td><span class="flag ${hi?'hi':'ok'}">${hi?'Sopra soglia':'Nella norma'}</span></td>
-    <td class="tag">${x.note||''}</td>`;
-  tb.appendChild(tr);
+// sintesi
+const lastDay = new Date(last.dt.getFullYear(), last.dt.getMonth(), last.dt.getDate());
+const wkFrom = new Date(lastDay - 6*DAY);
+const week = home.filter(x => x.dt >= wkFrom);
+const pre = home.filter(x => tDay(x.dt) < 1 || (tDay(x.dt)===1 && /prima della compressa/i.test(x.note)));
+const W = avg(week), P = avg(pre);
+const overW = week.filter(x => level(x)!=="ok").length;
+const dlt = (a,b) => { const v=a-b; return `<span class="delta ${v>0?"up":""}">${v>0?"+":"−"}${Math.abs(v)}</span>`; };
+
+document.getElementById("chips").innerHTML =
+  `<span class="chip">Terapia dal ${dShort(start)} · giorno ${tDay(last.dt)}</span><span class="chip">Bivis dal ${dShort(parse(SWITCH))}</span><span class="chip">${home.length} misurazioni a casa</span>`;
+
+const lv = level(last);
+let html = `<div class="card"><span class="k">Ultima misurazione</span>
+  <span class="v">${bp(last.s,last.d)}</span>
+  <span class="pill ${lv}">${LEVEL_TXT[lv]}</span>
+  <span class="m">${GG[last.dt.getDay()]} ${dShort(last.dt)}, ore ${hhmm(last.dt)}</span></div>`;
+if(W) html += `<div class="card"><span class="k">Media ultimi 7 giorni</span>
+  <span class="v">${bp(W.s,W.d)}</span>
+  <span class="pill ${level(W)}">${LEVEL_TXT[level(W)]}</span>
+  <span class="m">${dShort(wkFrom)} – ${dShort(lastDay)} · ${W.n} misurazioni, ${overW} sopra soglia</span></div>`;
+if(P) html += `<div class="card"><span class="k">Prima della terapia</span>
+  <span class="v">${bp(P.s,P.d)}</span>
+  ${W ? `<span class="m">Ultimi 7 giorni: ${dlt(W.s,P.s)} massima, ${dlt(W.d,P.d)} minima</span>` : ""}
+  <span class="m">Media di ${P.n} misurazioni a casa, ${dShort(pre[0].dt)} – ${dShort(pre[pre.length-1].dt)}</span></div>`;
+document.getElementById("summary").innerHTML = html;
+
+// diario: un rigo per giorno, raggruppato per settimana (lun–dom)
+const ROUTINE = /^(risveglio|mattina|sera|notte|pomeriggio)(, (prima della compressa|primo giorno di terapia|giorno \d+ di terapia))?$/i;
+const days = new Map();
+R.forEach(x => { const k = dayKey(x.dt); if(!days.has(k)) days.set(k, []); days.get(k).push(x); });
+const monday = dt => { const d = new Date(dt.getFullYear(),dt.getMonth(),dt.getDate()); return new Date(d - ((d.getDay()+6)%7)*DAY); };
+const weeks = new Map();
+[...days.keys()].forEach(k => { const m = dayKey(monday(parse(k))); if(!weeks.has(m)) weeks.set(m, []); weeks.get(m).push(k); });
+
+const cell = list => list.length ? list.map(x => { const l = level(x);
+  return `<div class="rd ${l==="ok"?"":l}" title="${LEVEL_TXT[l]}"><b>${bp(x.s,x.d)}</b><span class="tm num">${hhmm(x.dt)}</span>${x.where==="amb"?'<span class="tag">ambulatorio</span>':""}</div>`;
+}).join("") : '<span class="empty">—</span>';
+
+let rows = "";
+[...weeks.keys()].reverse().forEach(m => {
+  const ks = weeks.get(m);
+  const wHome = ks.flatMap(k => days.get(k)).filter(x => x.where==="casa");
+  const a = avg(wHome); const md = parse(m);
+  rows += `<tr class="week"><td colspan="4">Settimana ${dShort(md)} – ${dShort(new Date(+md+6*DAY))}${a?` · media a casa <b>${bp(a.s,a.d)}</b> su ${a.n}`:""}</td></tr>`;
+  [...ks].reverse().forEach(k => {
+    const list = days.get(k), dt = parse(k), td = tDay(dt);
+    const notes = list.map(x => x.note).filter(n => n && !ROUTINE.test(n.trim()));
+    rows += `<tr><td class="day">${GG[dt.getDay()]} ${dShort(dt)}<span class="tday">${td>=1?`giorno ${td} di terapia`:"prima della terapia"}</span></td>
+      <td class="slot" data-label="Mattina">${cell(list.filter(x=>x.dt.getHours()<14))}</td>
+      <td class="slot" data-label="Sera">${cell(list.filter(x=>x.dt.getHours()>=14))}</td>
+      <td class="notes">${notes.map(n=>`<div>${n}</div>`).join("")}</td></tr>`;
+  });
 });
+document.getElementById("rows").innerHTML = rows;
 
+// grafico su asse temporale reale (x = giorni dal primo dato)
+const t0 = new Date(R[0].dt.getFullYear(), R[0].dt.getMonth(), R[0].dt.getDate());
+const X = dt => (dt - t0)/DAY;
+const dailyMean = [...days.entries()].map(([k,l]) => { const h = l.filter(x=>x.where==="casa"); const a = avg(h); return a && {x:X(parse(k))+0.5, s:a.s, d:a.d, k}; }).filter(Boolean);
 let chart;
-function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const guides = { id:"guides", beforeDatasetsDraw(c){
+  const {ctx, chartArea:a, scales:{x,y}} = c, muted = css("--muted");
+  ctx.save(); ctx.setLineDash([6,5]); ctx.lineWidth = 1.2;
+  [[135,css("--sys")],[85,css("--dia")]].forEach(([v,col]) => {
+    const py = y.getPixelForValue(v); ctx.strokeStyle = col; ctx.globalAlpha = .7;
+    ctx.beginPath(); ctx.moveTo(a.left,py); ctx.lineTo(a.right,py); ctx.stroke();
+    ctx.globalAlpha = 1; ctx.fillStyle = col; ctx.font = "600 11px Public Sans, system-ui, sans-serif"; ctx.textAlign = "right"; ctx.fillText(v, a.right-2, py-5);
+  });
+  const px = x.getPixelForValue(X(start)+0.33);
+  ctx.setLineDash([2,4]); ctx.strokeStyle = muted; ctx.globalAlpha = .9;
+  ctx.beginPath(); ctx.moveTo(px,a.top); ctx.lineTo(px,a.bottom); ctx.stroke();
+  ctx.setLineDash([]); ctx.fillStyle = muted; ctx.textAlign = "left"; ctx.font = "600 11px Public Sans, system-ui, sans-serif";
+  ctx.fillText("Olmesartan", px+5, a.top+12);
+  const sx = x.getPixelForValue(X(parse(SWITCH))), ink = css("--ink");
+  ctx.globalAlpha = .07; ctx.fillStyle = ink; ctx.fillRect(sx, a.top, a.right-sx, a.bottom-a.top);
+  ctx.globalAlpha = 1; ctx.strokeStyle = ink; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(sx,a.top); ctx.lineTo(sx,a.bottom); ctx.stroke();
+  ctx.fillStyle = ink; ctx.font = "700 12px Public Sans, system-ui, sans-serif";
+  ctx.fillText("Bivis dal 29/10", sx+6, a.top+14);
+  ctx.restore();
+}};
 function draw(){
   if(typeof Chart==="undefined") return;
   const sys=css("--sys"), dia=css("--dia"), muted=css("--muted"), line=css("--line"), surf=css("--surface");
-  const labels = DATA.map(x=>lab(x.t).short);
-  const pt = (c)=>DATA.map(x=>x.where==="amb"?surf:c);
+  const pts = (key,col,amb) => ({type:"scatter", data:R.filter(x=>(x.where==="amb")===amb).map(x=>({x:X(x.dt), y:x[key], r:x})),
+    backgroundColor: amb ? surf : col+"66", borderColor: amb ? col : "transparent", borderWidth: amb?2:0, pointRadius: amb?5:3.5, pointHoverRadius:6});
+  const mean = (key,col,label) => ({type:"line", label, data:dailyMean.map(m=>({x:m.x, y:m[key], m})), borderColor:col, backgroundColor:col,
+    borderWidth:2.5, cubicInterpolationMode:"monotone", pointRadius:0, pointHoverRadius:5});
+  const span = X(last.dt) + 1;
   const cfg = {
-    type:"line",
-    data:{labels,datasets:[
-      {label:"Massima",data:DATA.map(x=>x.s),borderColor:sys,backgroundColor:pt(sys),pointBorderColor:sys,pointBorderWidth:2,pointRadius:5,pointHoverRadius:7,borderWidth:2.5,tension:.25},
-      {label:"Minima",data:DATA.map(x=>x.d),borderColor:dia,backgroundColor:pt(dia),pointBorderColor:dia,pointBorderWidth:2,pointRadius:5,pointHoverRadius:7,borderWidth:2.5,tension:.25},
-      {label:"Soglia massima 135",data:DATA.map(()=>135),borderColor:sys,borderDash:[6,5],borderWidth:1.2,pointRadius:0,pointHoverRadius:0,fill:false},
-      {label:"Soglia minima 85",data:DATA.map(()=>85),borderColor:dia,borderDash:[6,5],borderWidth:1.2,pointRadius:0,pointHoverRadius:0,fill:false}
-    ]},
+    data:{datasets:[mean("s",sys,"Massima"), mean("d",dia,"Minima"), pts("s",sys,false), pts("d",dia,false), pts("s",sys,true), pts("d",dia,true)]},
     options:{
-      responsive:true,maintainAspectRatio:false,
-      interaction:{mode:"index",intersect:false},
-      plugins:{legend:{display:false},
-        tooltip:{filter:i=>i.datasetIndex<2,callbacks:{
-          title:(items)=>lab(DATA[items[0].dataIndex].t).long + (DATA[items[0].dataIndex].where==="amb"?" (ambulatorio)":""),
-          label:(i)=>` ${i.dataset.label}: ${i.parsed.y} mmHg`}}},
+      responsive:true, maintainAspectRatio:false, animation:false,
+      interaction:{mode:"nearest", intersect:true},
+      plugins:{legend:{display:false}, tooltip:{callbacks:{
+        title:items => { const r = items[0].raw; if(r.r) return `${GG[r.r.dt.getDay()]} ${dShort(r.r.dt)}, ore ${hhmm(r.r.dt)}${r.r.where==="amb"?" (ambulatorio)":""}`; const d = parse(r.m.k); return `${GG[d.getDay()]} ${dShort(d)}, media del giorno`; },
+        label:i => { const r = i.raw; return r.r ? ` ${r.r.s}/${r.r.d} mmHg` : ` ${i.dataset.label}: ${i.parsed.y} mmHg`; }}}},
       scales:{
-        y:{suggestedMin:70,suggestedMax:170,ticks:{color:muted,stepSize:10},grid:{color:line},title:{display:true,text:"mmHg",color:muted}},
-        x:{ticks:{color:muted,maxRotation:0,autoSkip:true},grid:{display:false}}
+        y:{min:70, max:170, ticks:{color:muted, stepSize:10}, grid:{color:line}, title:{display:true, text:"mmHg", color:muted}},
+        x:{type:"linear", min:0, max:span, border:{display:false},
+           grid:{drawTicks:false, color:c => new Date(+t0 + c.tick.value*DAY).getDay()===1 ? line : "transparent"},
+           ticks:{color:muted, stepSize:1, autoSkip:false, maxRotation:0, padding:6,
+             callback:v => { const d = new Date(+t0 + v*DAY); return Number.isInteger(v) && (d.getDay()===1) ? dShort(d) : ""; }}}
       }
-    }
+    },
+    plugins:[guides]
   };
   if(chart) chart.destroy();
-  chart = new Chart(document.getElementById("chart"),cfg);
+  chart = new Chart(document.getElementById("chart"), cfg);
 }
 draw();
-try{window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change",draw)}catch(e){}
-new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+try{ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", draw); }catch(e){}
+new MutationObserver(draw).observe(document.documentElement, {attributes:true, attributeFilter:["data-theme"]});
 </script>
-</body>
-</html>
+
+</body></html>
